@@ -1,0 +1,1020 @@
+openapi: '3.0.3'
+info:
+  title: Yoga App REST API
+  description: |
+    RESTful API documentation for Yoga App - A comprehensive application for managing users, guests, and products.
+    
+    ## Features
+    - User Management (CRUD operations)
+    - Guest Management with attendance confirmation
+    - Product Management with categories and inventory
+    
+    ## Authentication
+    Currently, this API does not implement authentication. It should be added before production deployment.
+    
+    ## Base URL
+    All API endpoints are relative to the base URL shown in the servers section.
+  version: '1.0.0'
+  contact:
+    name: Yoga App Development Team
+    email: admin@yogaapp.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local Development Server
+  - url: https://api.yogaapp.com/v1
+    description: Production Server
+
+tags:
+  - name: Users
+    description: User management endpoints
+  - name: Guests
+    description: Guest registration and management
+  - name: Products
+    description: Product inventory management
+
+paths:
+  # ============================================
+  # USER ENDPOINTS
+  # ============================================
+  /users:
+    get:
+      tags:
+        - Users
+      summary: Get all users
+      description: Retrieve a list of all registered users
+      operationId: getUsers
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: prodi
+          in: query
+          description: Filter by program study
+          required: false
+          schema:
+            type: string
+            enum: [informatika, bisnis digital, rekayasa sistem komputer, desain komunikasi visual]
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Users
+      summary: Create a new user
+      description: Register a new user in the system
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User created successfully
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      description: Retrieve detailed information about a specific user
+      operationId: getUserById
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Users
+      summary: Update user
+      description: Update an existing user's information
+      operationId: updateUser
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User updated successfully
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      description: Remove a user from the system
+      operationId: deleteUser
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: User deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ============================================
+  # GUEST ENDPOINTS
+  # ============================================
+  /guests:
+    get:
+      tags:
+        - Guests
+      summary: Get all guests
+      description: Retrieve a list of all registered guests
+      operationId: getGuests
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: konfirmasi_kehadiran
+          in: query
+          description: Filter by attendance confirmation
+          required: false
+          schema:
+            type: string
+            enum: [iya, tidak]
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Guest'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Guests
+      summary: Create a new guest
+      description: Register a new guest with attendance confirmation
+      operationId: createGuest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuestInput'
+      responses:
+        '201':
+          description: Guest created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Guest registered successfully
+                  data:
+                    $ref: '#/components/schemas/Guest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /guests/{id}:
+    get:
+      tags:
+        - Guests
+      summary: Get guest by ID
+      description: Retrieve detailed information about a specific guest
+      operationId: getGuestById
+      parameters:
+        - name: id
+          in: path
+          description: Guest ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Guest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Guests
+      summary: Update guest
+      description: Update an existing guest's information
+      operationId: updateGuest
+      parameters:
+        - name: id
+          in: path
+          description: Guest ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GuestInput'
+      responses:
+        '200':
+          description: Guest updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Guest updated successfully
+                  data:
+                    $ref: '#/components/schemas/Guest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Guests
+      summary: Delete guest
+      description: Remove a guest from the system
+      operationId: deleteGuest
+      parameters:
+        - name: id
+          in: path
+          description: Guest ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Guest deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Guest deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ============================================
+  # PRODUCT ENDPOINTS
+  # ============================================
+  /products:
+    get:
+      tags:
+        - Products
+      summary: Get all products
+      description: Retrieve a list of all products with optional filtering
+      operationId: getProducts
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: search
+          in: query
+          description: Search products by name
+          required: false
+          schema:
+            type: string
+        - name: kategori
+          in: query
+          description: Filter by category
+          required: false
+          schema:
+            type: string
+        - name: sort
+          in: query
+          description: Sort field
+          required: false
+          schema:
+            type: string
+            enum: [nama, harga_jual, harga_beli, qty, created_at]
+            default: created_at
+        - name: order
+          in: query
+          description: Sort order
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Products
+      summary: Create a new product
+      description: Add a new product to the inventory
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Product created successfully
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /products/{id}:
+    get:
+      tags:
+        - Products
+      summary: Get product by ID
+      description: Retrieve detailed information about a specific product
+      operationId: getProductById
+      parameters:
+        - name: id
+          in: path
+          description: Product ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    put:
+      tags:
+        - Products
+      summary: Update product
+      description: Update an existing product's information
+      operationId: updateProduct
+      parameters:
+        - name: id
+          in: path
+          description: Product ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Product updated successfully
+                  data:
+                    $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Products
+      summary: Delete product
+      description: Remove a product from the inventory
+      operationId: deleteProduct
+      parameters:
+        - name: id
+          in: path
+          description: Product ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Product deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Product deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ============================================
+  # STATISTICS ENDPOINTS
+  # ============================================
+  /statistics/dashboard:
+    get:
+      tags:
+        - Statistics
+      summary: Get dashboard statistics
+      description: Retrieve summary statistics for the dashboard
+      operationId: getDashboardStats
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      total_users:
+                        type: integer
+                        example: 150
+                      total_guests:
+                        type: integer
+                        example: 75
+                      total_products:
+                        type: integer
+                        example: 200
+                      guests_confirmed:
+                        type: integer
+                        example: 60
+                      total_inventory_value:
+                        type: integer
+                        example: 50000000
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+# ============================================
+# COMPONENTS
+# ============================================
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nama:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          format: email
+          example: john.doe@example.com
+        no_hp:
+          type: string
+          example: "081234567890"
+        alamat:
+          type: string
+          example: Jl. Sudirman No. 123, Jakarta
+        jenis_kelamin:
+          type: string
+          enum: [laki-laki, perempuan]
+          example: laki-laki
+        prodi:
+          type: string
+          enum: [informatika, bisnis digital, rekayasa sistem komputer, desain komunikasi visual]
+          example: informatika
+        created_at:
+          type: string
+          format: date-time
+          example: 2025-01-15T10:30:00Z
+        updated_at:
+          type: string
+          format: date-time
+          example: 2025-01-15T10:30:00Z
+      required:
+        - id
+        - nama
+        - email
+        - no_hp
+        - alamat
+        - jenis_kelamin
+        - prodi
+
+    UserInput:
+      type: object
+      properties:
+        nama:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: John Doe
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: john.doe@example.com
+        no_hp:
+          type: string
+          pattern: '^[0-9]{10,15}$'
+          example: "081234567890"
+        alamat:
+          type: string
+          minLength: 1
+          example: Jl. Sudirman No. 123, Jakarta
+        jenis_kelamin:
+          type: string
+          enum: [laki-laki, perempuan]
+          example: laki-laki
+        prodi:
+          type: string
+          enum: [informatika, bisnis digital, rekayasa sistem komputer, desain komunikasi visual]
+          example: informatika
+      required:
+        - nama
+        - email
+        - no_hp
+        - alamat
+        - jenis_kelamin
+        - prodi
+
+    Guest:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nama:
+          type: string
+          example: Jane Smith
+        alamat:
+          type: string
+          example: Jl. Thamrin No. 456, Jakarta
+        jenis_kelamin:
+          type: string
+          enum: [laki, perempuan]
+          example: perempuan
+        konfirmasi_kehadiran:
+          type: string
+          enum: [iya, tidak]
+          example: iya
+        created_at:
+          type: string
+          format: date-time
+          example: 2025-01-15T10:30:00Z
+        updated_at:
+          type: string
+          format: date-time
+          example: 2025-01-15T10:30:00Z
+      required:
+        - id
+        - nama
+        - alamat
+        - jenis_kelamin
+        - konfirmasi_kehadiran
+
+    GuestInput:
+      type: object
+      properties:
+        nama:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: Jane Smith
+        alamat:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: Jl. Thamrin No. 456, Jakarta
+        jenis_kelamin:
+          type: string
+          enum: [laki, perempuan]
+          example: perempuan
+        konfirmasi_kehadiran:
+          type: string
+          enum: [iya, tidak]
+          example: iya
+      required:
+        - nama
+        - alamat
+        - jenis_kelamin
+        - konfirmasi_kehadiran
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        nama:
+          type: string
+          example: Laptop Asus ROG
+        kategori:
+          type: string
+          example: Elektronik
+        id_kategori:
+          type: integer
+          example: 1
+        qty:
+          type: integer
+          minimum: 0
+          example: 10
+        harga_beli:
+          type: integer
+          minimum: 0
+          example: 8000000
+        harga_jual:
+          type: integer
+          minimum: 0
+          example: 10000000
+        created_at:
+          type: string
+          format: date-time
+          example: 2025-01-15T10:30:00Z
+        updated_at:
+          type: string
+          format: date-time
+          example: 2025-01-15T10:30:00Z
+      required:
+        - id
+        - nama
+        - kategori
+        - id_kategori
+        - qty
+        - harga_beli
+        - harga_jual
+
+    ProductInput:
+      type: object
+      properties:
+        nama:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: Laptop Asus ROG
+        kategori:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Elektronik
+        id_kategori:
+          type: integer
+          minimum: 1
+          example: 1
+        qty:
+          type: integer
+          minimum: 0
+          example: 10
+        harga_beli:
+          type: integer
+          minimum: 0
+          example: 8000000
+        harga_jual:
+          type: integer
+          minimum: 0
+          example: 10000000
+      required:
+        - nama
+        - kategori
+        - qty
+        - harga_beli
+        - harga_jual
+
+    Pagination:
+      type: object
+      properties:
+        current_page:
+          type: integer
+          example: 1
+        per_page:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          example: 100
+        last_page:
+          type: integer
+          example: 10
+        from:
+          type: integer
+          example: 1
+        to:
+          type: integer
+          example: 10
+
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: An error occurred
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+        - success
+        - message
+
+  responses:
+    BadRequest:
+      description: Bad request - Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            message: Invalid request data
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            message: Resource not found
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            message: Validation failed
+            errors:
+              nama: ["The nama field is required."]
+              email: ["The email must be a valid email address."]
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            message: Internal server error

@@ -1,5 +1,112 @@
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
+# Yoga App - Modern Dashboard Application
+
+A comprehensive web application for managing users, guests, and products with a modern dashboard interface.
+
+## 🎨 Recent Updates
+
+### ✨ New UI/UX Design
+- **Modern Sidebar & Navbar**: Responsive layout dengan sidebar yang collapsible dan navbar dengan logo
+- **Updated Dashboard**: Dashboard users dan products dengan design yang lebih modern
+- **Improved Forms**: Form create dan edit produk dengan better UX
+- **Mobile Responsive**: Full responsive design untuk semua devices
+
+### 📄 API Documentation
+- **OpenAPI 3.0 Specification**: File `api.yml` telah diperbarui dengan dokumentasi lengkap
+- **REST API Endpoints**: Dokumentasi lengkap untuk Users, Guests, Products, dan Statistics
+- **Implementation Guide**: Panduan lengkap untuk backend developer di `API_DOCUMENTATION.md`
+
+## 📁 Project Structure
+
+```
+├── app/
+│   ├── Http/Controllers/
+│   │   ├── UserController.php
+│   │   ├── GuestController.php
+│   │   └── ProdukController.php
+│   ├── Models/
+│   │   ├── User.php
+│   │   ├── Guest.php
+│   │   └── MataKuliah.php
+│   └── View/Components/
+│       ├── AdminLayout.php
+│       └── nav.php
+├── resources/views/
+│   ├── layouts/
+│   │   └── admin.blade.php         # New admin layout
+│   ├── components/
+│   │   ├── sidebar.blade.php       # New sidebar
+│   │   ├── navbar.blade.php        # New navbar
+│   │   └── layout.blade.php
+│   ├── dashboard.blade.php         # Updated users dashboard
+│   └── produk/
+│       ├── index.blade.php         # Updated products list
+│       ├── create.blade.php        # Updated create form
+│       └── edit.blade.php          # Updated edit form
+├── api.yml                          # Updated OpenAPI spec
+├── API_DOCUMENTATION.md             # API implementation guide
+└── FRONTEND_UPDATES.md              # Frontend changes documentation
+```
+
+## 🚀 Features
+
+### User Management
+- CRUD operations for users
+- Filter by program study (prodi)
+- Form validation
+- Responsive table display
+
+### Guest Management
+- Guest registration with attendance confirmation
+- View all guests
+- Filter by confirmation status
+
+### Product Management
+- Complete inventory management
+- Search and filter by category
+- Stock tracking with color indicators
+- Purchase and selling price management
+- Summary statistics (total products, stock, inventory value)
+
+### Modern UI Components
+- Sidebar with logo and navigation
+- Top navbar with search and notifications
+- Responsive mobile menu
+- Badge components for status
+- Empty states with illustrations
+- Success/error message alerts
+
+## 📋 API Endpoints
+
+### Users API
+- `GET /api/v1/users` - Get all users
+- `POST /api/v1/users` - Create new user
+- `GET /api/v1/users/{id}` - Get user by ID
+- `PUT /api/v1/users/{id}` - Update user
+- `DELETE /api/v1/users/{id}` - Delete user
+
+### Guests API
+- `GET /api/v1/guests` - Get all guests
+- `POST /api/v1/guests` - Create new guest
+- `GET /api/v1/guests/{id}` - Get guest by ID
+- `PUT /api/v1/guests/{id}` - Update guest
+- `DELETE /api/v1/guests/{id}` - Delete guest
+
+### Products API
+- `GET /api/v1/products` - Get all products
+- `POST /api/v1/products` - Create new product
+- `GET /api/v1/products/{id}` - Get product by ID
+- `PUT /api/v1/products/{id}` - Update product
+- `DELETE /api/v1/products/{id}` - Delete product
+
+### Statistics API
+- `GET /api/v1/statistics/dashboard` - Get dashboard statistics
+
+**Full API Documentation**: See `api.yml` and `API_DOCUMENTATION.md`
+
+## 🛠️ Installation
+
 <p align="center">
 <a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
