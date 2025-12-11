@@ -1,0 +1,790 @@
+openapi: 3.0.3
+info:
+  title: Restaurant Table Booking System API
+  description: API untuk sistem pemesanan meja restoran
+  version: 1.0.0
+  contact:
+    name: Restaurant Booking System
+    email: support@restaurant.com
+
+servers:
+  - url: http://localhost:8000/api
+    description: Local Development Server
+  - url: https://api.restaurant.com
+    description: Production Server
+
+tags:
+  - name: Authentication
+    description: Endpoint untuk autentikasi user
+  - name: Bookings
+    description: Endpoint untuk manajemen booking
+  - name: Dashboard
+    description: Endpoint untuk dashboard admin
+
+paths:
+  /login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      description: Autentikasi user dengan email dan password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@restaurant.com
+                password:
+                  type: string
+                  format: password
+                  example: password123
+      responses:
+        '200':
+          description: Login berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Login berhasil
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                        example: eyJ0eXAiOiJKV1QiLCJhbGc...
+                      user:
+                        $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout user
+      description: Logout user dan hapus token
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logout berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Logout berhasil
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user data
+      description: Mendapatkan data user yang sedang login
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Data user berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /bookings:
+    get:
+      tags:
+        - Bookings
+      summary: Get all bookings
+      description: Mendapatkan daftar semua booking dengan filter dan pagination
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Nomor halaman
+          schema:
+            type: integer
+            default: 1
+            example: 1
+        - name: per_page
+          in: query
+          description: Jumlah data per halaman
+          schema:
+            type: integer
+            default: 10
+            example: 10
+        - name: status
+          in: query
+          description: Filter berdasarkan status
+          schema:
+            type: string
+            enum: [pending, confirmed, completed, cancelled]
+            example: pending
+        - name: date
+          in: query
+          description: Filter berdasarkan tanggal (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+            example: '2024-12-25'
+        - name: search
+          in: query
+          description: Cari berdasarkan nama atau nomor telepon
+          schema:
+            type: string
+            example: John
+        - name: sort_by
+          in: query
+          description: Field untuk sorting
+          schema:
+            type: string
+            enum: [date, created_at, name]
+            default: created_at
+            example: date
+        - name: sort_order
+          in: query
+          description: Urutan sorting
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+            example: desc
+      responses:
+        '200':
+          description: Daftar booking berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Bookings
+      summary: Create new booking
+      description: Membuat booking baru (dapat dilakukan tanpa login untuk customer)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingInput'
+      responses:
+        '201':
+          description: Booking berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Booking berhasil dibuat
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /bookings/{id}:
+    get:
+      tags:
+        - Bookings
+      summary: Get booking by ID
+      description: Mendapatkan detail booking berdasarkan ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID booking
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Detail booking berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/BookingDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags:
+        - Bookings
+      summary: Update booking
+      description: Update data booking (hanya admin/staff)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID booking
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingInput'
+      responses:
+        '200':
+          description: Booking berhasil diupdate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Booking berhasil diupdate
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      tags:
+        - Bookings
+      summary: Delete booking
+      description: Hapus booking (hanya admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID booking
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Booking berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Booking berhasil dihapus
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /bookings/{id}/status:
+    patch:
+      tags:
+        - Bookings
+      summary: Update booking status
+      description: Update status booking (hanya admin/staff)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID booking
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [pending, confirmed, completed, cancelled]
+                  example: confirmed
+                notes:
+                  type: string
+                  example: Customer sudah dikonfirmasi via telepon
+      responses:
+        '200':
+          description: Status booking berhasil diupdate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Status booking berhasil diupdate
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /dashboard/stats:
+    get:
+      tags:
+        - Dashboard
+      summary: Get dashboard statistics
+      description: Mendapatkan statistik untuk dashboard admin
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: date_from
+          in: query
+          description: Tanggal mulai filter (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+            example: '2024-12-01'
+        - name: date_to
+          in: query
+          description: Tanggal akhir filter (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+            example: '2024-12-31'
+      responses:
+        '200':
+          description: Statistik berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      total_bookings:
+                        type: integer
+                        example: 150
+                      pending_bookings:
+                        type: integer
+                        example: 25
+                      confirmed_bookings:
+                        type: integer
+                        example: 80
+                      completed_bookings:
+                        type: integer
+                        example: 40
+                      cancelled_bookings:
+                        type: integer
+                        example: 5
+                      today_bookings:
+                        type: integer
+                        example: 12
+                      total_guests:
+                        type: integer
+                        example: 450
+                      bookings_by_date:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                              format: date
+                              example: '2024-12-01'
+                            count:
+                              type: integer
+                              example: 8
+                      popular_times:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            hour:
+                              type: string
+                              example: '19:00'
+                            count:
+                              type: integer
+                              example: 35
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /dashboard/recent-bookings:
+    get:
+      tags:
+        - Dashboard
+      summary: Get recent bookings
+      description: Mendapatkan daftar booking terbaru untuk dashboard
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Jumlah data yang ditampilkan
+          schema:
+            type: integer
+            default: 5
+            example: 5
+      responses:
+        '200':
+          description: Booking terbaru berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Masukkan token JWT yang didapat dari endpoint login
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Admin User
+        email:
+          type: string
+          format: email
+          example: admin@restaurant.com
+        role:
+          type: string
+          enum: [admin, staff, customer]
+          example: admin
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00.000000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2024-01-01T00:00:00.000000Z'
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: John Doe
+        phone:
+          type: string
+          example: '081234567890'
+        date:
+          type: string
+          format: date
+          example: '2024-12-25'
+        time:
+          type: string
+          format: time
+          example: '19:00:00'
+        people:
+          type: integer
+          example: 4
+        notes:
+          type: string
+          nullable: true
+          example: Meja dekat jendela
+        status:
+          type: string
+          enum: [pending, confirmed, completed, cancelled]
+          example: pending
+        created_by:
+          type: integer
+          nullable: true
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: '2024-12-01T10:30:00.000000Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2024-12-01T10:30:00.000000Z'
+
+    BookingDetail:
+      allOf:
+        - $ref: '#/components/schemas/Booking'
+        - type: object
+          properties:
+            creator:
+              $ref: '#/components/schemas/User'
+            status_logs:
+              type: array
+              items:
+                $ref: '#/components/schemas/BookingStatusLog'
+
+    BookingInput:
+      type: object
+      required:
+        - name
+        - phone
+        - date
+        - time
+        - people
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: John Doe
+        phone:
+          type: string
+          pattern: '^[0-9+\-\s()]+$'
+          minLength: 10
+          maxLength: 20
+          example: '081234567890'
+        date:
+          type: string
+          format: date
+          example: '2024-12-25'
+        time:
+          type: string
+          format: time
+          example: '19:00'
+        people:
+          type: integer
+          minimum: 1
+          maximum: 20
+          example: 4
+        notes:
+          type: string
+          maxLength: 500
+          nullable: true
+          example: Meja dekat jendela
+
+    BookingStatusLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        booking_id:
+          type: integer
+          example: 1
+        old_status:
+          type: string
+          enum: [pending, confirmed, completed, cancelled]
+          nullable: true
+          example: pending
+        new_status:
+          type: string
+          enum: [pending, confirmed, completed, cancelled]
+          example: confirmed
+        changed_by:
+          type: integer
+          example: 1
+        changer:
+          $ref: '#/components/schemas/User'
+        notes:
+          type: string
+          nullable: true
+          example: Customer sudah dikonfirmasi
+        created_at:
+          type: string
+          format: date-time
+          example: '2024-12-01T10:35:00.000000Z'
+
+    PaginationMeta:
+      type: object
+      properties:
+        current_page:
+          type: integer
+          example: 1
+        from:
+          type: integer
+          example: 1
+        last_page:
+          type: integer
+          example: 10
+        per_page:
+          type: integer
+          example: 10
+        to:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          example: 100
+
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Error message
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+  responses:
+    Unauthorized:
+      description: Unauthorized - Token tidak valid atau tidak ada
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Unauthenticated
+
+    Forbidden:
+      description: Forbidden - User tidak memiliki akses
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Anda tidak memiliki akses untuk melakukan aksi ini
+
+    NotFound:
+      description: Not Found - Data tidak ditemukan
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Data tidak ditemukan
+
+    ValidationError:
+      description: Validation Error - Data yang dikirim tidak valid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            success: false
+            message: The given data was invalid
+            errors:
+              name:
+                - The name field is required.
+              phone:
+                - The phone field is required.
+              date:
+                - The date must be a valid date.
