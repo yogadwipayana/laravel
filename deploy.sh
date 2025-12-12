@@ -42,6 +42,15 @@ fi
 echo "📋 Configuration:"
 echo "  Database: $DB_DATABASE @ $DB_HOST:${DB_PORT:-3306}"
 echo "  App Environment: ${APP_ENV:-production}"
+echo "  Domain: ${DOMAIN:-localhost}"
+
+# Update nginx configuration with domain if provided
+if [ ! -z "$DOMAIN" ]; then
+    echo "🔧 Updating nginx configuration with domain..."
+    sed "s/yourdomain.com/$DOMAIN/g" docker/nginx-proxy.conf > docker/nginx-proxy.conf.tmp
+    mv docker/nginx-proxy.conf.tmp docker/nginx-proxy.conf
+    echo "✅ Nginx configured for $DOMAIN"
+fi
 
 # Create necessary directories
 echo "📁 Creating directories..."

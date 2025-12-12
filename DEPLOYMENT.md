@@ -1,14 +1,14 @@
 # 🚀 Panduan Deployment Laravel ke VPS Ubuntu
 
-Panduan lengkap untuk deploy aplikasi **WBS Laravel** ke VPS Ubuntu menggunakan Docker, Nginx, MySQL, dan SSL (Let's Encrypt).
+Panduan lengkap untuk deploy aplikasi **WBS Laravel** ke VPS Ubuntu menggunakan Docker dan Nginx (Latest Version).
 
 ## 📋 Prasyarat
 
 1. **VPS Ubuntu** (20.04 atau lebih baru)
-2. **Domain** yang sudah di-pointing ke IP VPS Anda
+2. **Domain** (opsional) - Jika ingin menggunakan domain custom
 3. **SSH Access** ke VPS dengan sudo privileges
 4. **Minimal 2GB RAM** dan 20GB storage
-5. **Port terbuka**: 22 (SSH), 80 (HTTP), 443 (HTTPS)
+5. **Port terbuka**: 22 (SSH), 80 (HTTP)
 
 ## 🛠️ Persiapan VPS
 
@@ -53,7 +53,6 @@ sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow 22/tcp    # SSH
 sudo ufw allow 80/tcp    # HTTP
-sudo ufw allow 443/tcp   # HTTPS
 
 # Enable firewall
 sudo ufw --force enable
@@ -98,7 +97,7 @@ APP_NAME="WBS Laravel"
 APP_ENV=production
 APP_KEY=                              # Will be generated below
 APP_DEBUG=false
-APP_URL=https://yourdomain.com
+APP_URL=http://localhost              # Or http://yourdomain.com if using custom domain
 
 # Database (External MySQL Server)
 DB_CONNECTION=mysql
@@ -112,9 +111,8 @@ DB_PASSWORD=secure_db_password_here   # CHANGE THIS!
 SESSION_DRIVER=database
 CACHE_STORE=database
 
-# Deployment
-DOMAIN=yourdomain.com                 # Your actual domain
-SSL_EMAIL=your-email@example.com      # Your email for SSL
+# Server Configuration (Optional)
+DOMAIN=yourdomain.com                 # Your domain name (optional, use if you have a domain)
 ```
 
 > [!IMPORTANT] > **External MySQL Configuration**
@@ -134,8 +132,14 @@ SSL_EMAIL=your-email@example.com      # Your email for SSL
 > The deployment uses a **dual-nginx architecture**:
 >
 > -   **Internal nginx** runs inside the app container (via supervisord) for serving PHP-FPM
-> -   **External nginx** runs in a separate container for SSL termination and reverse proxy
-> -   Both work together to provide a secure, production-ready setup
+> -   **External nginx** (latest version) runs in a separate container as reverse proxy
+> -   Both work together to provide a production-ready setup
+> 
+> **Domain Configuration:**
+> -   If you set `DOMAIN` in .env, nginx will be configured to accept that domain
+> -   The deploy script will automatically update nginx configuration with your domain
+> -   You can access via domain name or server IP address
+> -   No SSL/HTTPS - HTTP only on port 80
 
 ### 2. Generate Application Key
 
@@ -183,7 +187,7 @@ chmod -R 775 storage bootstrap/cache
 
 ```bash
 # Make scripts executable
-chmod +x deploy.sh init-letsencrypt.sh
+chmod +x deploy.sh
 
 # Run deployment
 ./deploy.sh
@@ -191,15 +195,14 @@ chmod +x deploy.sh init-letsencrypt.sh
 
 Script akan otomatis:
 
--   ✅ Validasi konfigurasi (.env, DOMAIN, SSL_EMAIL, APP_KEY)
--   ✅ Update nginx configuration dengan domain Anda
--   ✅ Build Docker images
--   ✅ Start database dan tunggu ready
+-   ✅ Validasi konfigurasi (.env, database credentials, APP_KEY)
+-   ✅ Update nginx configuration dengan domain Anda (jika DOMAIN di-set)
+-   ✅ Build Docker images (with latest Nginx)
+-   ✅ Install composer dependencies
+-   ✅ Build frontend assets
 -   ✅ Run migrations
 -   ✅ Cache configurations untuk production
 -   ✅ Start semua services
--   ✅ Setup SSL certificate dengan Let's Encrypt
--   ✅ Configure auto-renewal SSL
 
 ### 2. Verifikasi Deployment
 
@@ -210,14 +213,16 @@ docker compose ps
 # Should show all services healthy/running:
 # NAME                STATUS                  PORTS
 # laravel-app         Up                     80/tcp, 9000/tcp
-# laravel-nginx       Up (healthy)           0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp
-# laravel-certbot     Up
+# laravel-nginx       Up (healthy)           0.0.0.0:80->80/tcp
 
 # Check logs
 docker compose logs -f
 
-# Test application
-curl -I https://yourdomain.com
+# Test application via IP
+curl -I http://your-vps-ip
+
+# Or via domain (if configured)
+curl -I http://yourdomain.com
 
 # Verify database connection
 docker compose exec app php artisan db:show
@@ -229,7 +234,9 @@ docker compose exec app php artisan tinker
 
 ### 3. Akses Aplikasi
 
-Buka browser dan akses: `https://yourdomain.com`
+Buka browser dan akses:
+- Via IP: `http://your-vps-ip`
+- Via Domain: `http://yourdomain.com` (jika DOMAIN sudah dikonfigurasi di .env)
 
 ## 📊 Database Management
 
@@ -370,21 +377,20 @@ docker system prune -a                   # Clean all unused
 docker volume prune                      # Clean volumes
 ```
 
-### SSL Certificate Management
+### Nginx Management
 
 ```bash
-# Check certificate status
-docker compose run --rm certbot certificates
-
-# Force renew certificate
-docker compose run --rm certbot renew --force-renewal
+# Reload nginx configuration
 docker compose exec nginx nginx -s reload
 
-# Test renewal (dry-run)
-docker compose run --rm certbot renew --dry-run
+# Test nginx configuration
+docker compose exec nginx nginx -t
 
-# Check certificate expiry
-echo | openssl s_client -servername yourdomain.com -connect yourdomain.com:443 2>/dev/null | openssl x509 -noout -dates
+# Check nginx version
+docker compose exec nginx nginx -v
+
+# View nginx access logs
+docker compose logs nginx --tail=100 -f
 ```
 
 ## 🔄 Update Aplikasi
@@ -533,12 +539,9 @@ sleep 10
 docker compose exec app php artisan migrate
 ```
 
-### SSL certificate error
+### Domain not accessible
 
 ```bash
-# Check certificate
-docker compose run --rm certbot certificates
-
 # Check nginx config
 docker compose exec nginx nginx -t
 
@@ -546,12 +549,15 @@ docker compose exec nginx nginx -t
 nslookup yourdomain.com
 dig yourdomain.com
 
-# Remove and regenerate
-sudo rm -rf certbot/conf/live certbot/conf/archive certbot/conf/renewal
-./init-letsencrypt.sh yourdomain.com your@email.com
+# Check if port 80 is open
+sudo ufw status
+netstat -tulpn | grep :80
 
 # Check nginx logs
 docker compose logs nginx
+
+# Verify domain configuration in .env
+cat .env | grep DOMAIN
 ```
 
 ### Permission denied errors
@@ -631,7 +637,6 @@ free -h
 
 # Network monitoring
 netstat -tulpn | grep :80
-netstat -tulpn | grep :443
 ```
 
 ### Application Logs
@@ -669,17 +674,17 @@ docker compose exec app php artisan session:gc
 ### Health Checks
 
 ```bash
-# HTTP health check
+# HTTP health check via localhost
 curl -I http://localhost
 
-# HTTPS health check
-curl -I https://yourdomain.com
+# HTTP health check via domain
+curl -I http://yourdomain.com
 
 # Check response time
-time curl -s https://yourdomain.com > /dev/null
+time curl -s http://yourdomain.com > /dev/null
 
-# SSL certificate expiry
-echo | openssl s_client -servername yourdomain.com -connect yourdomain.com:443 2>/dev/null | openssl x509 -noout -enddate
+# Check if site is responding
+wget --spider http://yourdomain.com
 ```
 
 ## 🔄 Maintenance Mode
@@ -717,9 +722,6 @@ crontab -e
 
 # Weekly cleanup (keep last 30 days)
 0 3 * * 0 find /var/www/wbs-laravel/backups -name "*.gz" -mtime +30 -delete
-
-# Daily SSL certificate check
-0 4 * * * docker compose -f /var/www/wbs-laravel/docker-compose.yml run --rm certbot renew --quiet
 ```
 
 ### Backup to Remote Storage (Optional)
@@ -739,14 +741,13 @@ rsync -avz --delete $BACKUP_DIR/ $REMOTE_USER@$REMOTE_HOST:$REMOTE_PATH/
 
 Before asking for help, verify:
 
--   [ ] DNS pointing to correct IP: `nslookup yourdomain.com`
--   [ ] Ports 80 and 443 are open: `sudo ufw status`
+-   [ ] DNS pointing to correct IP (if using domain): `nslookup yourdomain.com`
+-   [ ] Port 80 is open: `sudo ufw status`
 -   [ ] .env file configured correctly: `cat .env | grep -v PASSWORD`
 -   [ ] APP_KEY is set in .env
 -   [ ] Docker services running: `docker compose ps`
--   [ ] Database is accessible: `docker compose exec mysql mysql -u laravel -p`
+-   [ ] Database is accessible from container
 -   [ ] Nginx config valid: `docker compose exec nginx nginx -t`
--   [ ] SSL certificate exists: `docker compose run --rm certbot certificates`
 -   [ ] Logs checked: `docker compose logs`
 -   [ ] Disk space available: `df -h`
 -   [ ] Memory available: `free -h`
@@ -757,9 +758,7 @@ Before asking for help, verify:
 -   [ ] APP_KEY generated and set
 -   [ ] APP_DEBUG=false
 -   [ ] Strong database passwords set
--   [ ] Domain DNS properly configured
--   [ ] SSL certificate installed and valid
--   [ ] SSL auto-renewal tested
+-   [ ] Domain DNS properly configured (if using domain)
 -   [ ] Firewall configured and enabled
 -   [ ] SSH hardened (key-based auth)
 -   [ ] Automated backups configured
@@ -767,9 +766,9 @@ Before asking for help, verify:
 -   [ ] Health checks passing
 -   [ ] Performance optimized (cache enabled)
 -   [ ] Security headers configured
--   [ ] HTTPS redirect working
 -   [ ] Database migrations completed
 -   [ ] Storage permissions correct
+-   [ ] Nginx latest version running
 
 ## 📝 Catatan Penting
 
@@ -777,18 +776,17 @@ Before asking for help, verify:
 -   **Monitor disk space** karena Docker images dan logs bisa membesar
 -   **Update dependencies** secara berkala untuk security patches
 -   **Test di staging** sebelum deploy ke production
--   **SSL auto-renew** sudah dikonfigurasi, tapi monitor tetap penting
 -   **Database passwords** harus strong dan berbeda dari default
 -   **Keep .env secure** - jangan commit ke git!
+-   **Update Nginx** image secara berkala untuk security patches
 
 ## 🔗 Useful Links
 
 -   [Laravel Documentation](https://laravel.com/docs)
 -   [Docker Documentation](https://docs.docker.com/)
--   [Let's Encrypt Docs](https://letsencrypt.org/docs/)
 -   [Nginx Documentation](https://nginx.org/en/docs/)
--   [SSL Labs Test](https://www.ssllabs.com/ssltest/)
 -   [MySQL Documentation](https://dev.mysql.com/doc/)
+-   [Docker Compose](https://docs.docker.com/compose/)
 
 ---
 
@@ -797,12 +795,14 @@ Before asking for help, verify:
 Aplikasi Laravel Anda sekarang sudah running di production dengan:
 
 -   ✅ Docker containerization
--   ✅ SSL/HTTPS encryption
--   ✅ MySQL database dengan persistent storage
--   ✅ Automated SSL renewal
+-   ✅ Nginx latest version
+-   ✅ External MySQL database connection
 -   ✅ Production-optimized configuration
 -   ✅ Backup & restore capabilities
+-   ✅ HTTP access on port 80
 
-**Access your application at: `https://yourdomain.com`**
+**Access your application at:**
+-   Via IP: `http://your-vps-ip`
+-   Via Domain: `http://yourdomain.com` (if configured)
 
 Untuk bantuan lebih lanjut, cek logs: `docker compose logs -f`
