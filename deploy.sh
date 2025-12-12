@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Deployment script for Laravel Application with SSL
+# Deployment script for Laravel Application
 # Usage: ./deploy.sh
 
 set -e
@@ -20,16 +20,6 @@ fi
 export $(grep -v '^#' .env | xargs)
 
 # Check required variables
-if [ -z "$DOMAIN" ] || [ "$DOMAIN" = "example.com" ]; then
-    echo "❌ Error: DOMAIN not configured in .env"
-    exit 1
-fi
-
-if [ -z "$SSL_EMAIL" ] || [ "$SSL_EMAIL" = "admin@example.com" ]; then
-    echo "❌ Error: SSL_EMAIL not configured in .env"
-    exit 1
-fi
-
 if [ -z "$APP_KEY" ] || [ "$APP_KEY" = "" ]; then
     echo "❌ Error: APP_KEY not set in .env"
     echo "Please generate an APP_KEY:"
@@ -50,18 +40,8 @@ if [ -z "$DB_DATABASE" ] || [ -z "$DB_USERNAME" ] || [ -z "$DB_PASSWORD" ]; then
 fi
 
 echo "📋 Configuration:"
-echo "  Domain: $DOMAIN"
-echo "  Email: $SSL_EMAIL"
 echo "  Database: $DB_DATABASE @ $DB_HOST:${DB_PORT:-3306}"
 echo "  App Environment: ${APP_ENV:-production}"
-
-# Update nginx proxy configuration with domain
-echo "🔧 Updating nginx configuration..."
-# Create backup
-cp docker/nginx-proxy.conf docker/nginx-proxy.conf.bak
-# Replace domain (portable method)
-sed "s/yourdomain.com/$DOMAIN/g" docker/nginx-proxy.conf.bak > docker/nginx-proxy.conf
-echo "✅ Nginx configuration updated"
 
 # Create necessary directories
 echo "📁 Creating directories..."
@@ -70,21 +50,10 @@ mkdir -p storage/framework/sessions
 mkdir -p storage/framework/views
 mkdir -p storage/logs
 mkdir -p bootstrap/cache
-mkdir -p certbot/conf
-mkdir -p certbot/www
 
 # Set permissions
 echo "🔐 Setting permissions..."
 chmod -R 775 storage bootstrap/cache
-
-# Check if SSL certificate already exists
-if [ -d "./certbot/conf/live/$DOMAIN" ]; then
-    echo "🔒 SSL certificate already exists, skipping initialization"
-    SKIP_SSL=true
-else
-    echo "🔒 SSL certificate not found, will initialize"
-    SKIP_SSL=false
-fi
 
 # Build and start services
 echo "🐳 Building Docker images..."
@@ -94,7 +63,19 @@ echo "🚀 Starting application service..."
 docker compose up -d app
 
 echo "⏳ Waiting for application to start..."
-sleep 10
+sleep 5
+
+# Install dependencies (needed because volume mount overwrites container)
+echo "📦 Installing Composer dependencies..."
+docker compose exec -T app composer install --optimize-autoloader --no-dev
+
+echo "📦 Installing NPM dependencies and building assets..."
+docker compose exec -T app npm ci
+docker compose exec -T app npm run build
+docker compose exec -T app rm -rf node_modules
+
+echo "🔗 Creating storage symlink..."
+docker compose exec -T app php artisan storage:link
 
 # Test database connection
 echo "🔌 Testing database connection..."
@@ -123,15 +104,8 @@ docker compose up -d
 echo "⏳ Waiting for services to start..."
 sleep 10
 
-# Initialize SSL if needed
-if [ "$SKIP_SSL" = false ]; then
-    echo "🔐 Initializing SSL certificate..."
-    chmod +x init-letsencrypt.sh
-    ./init-letsencrypt.sh "$DOMAIN" "$SSL_EMAIL"
-else
-    echo "♻️  Reloading nginx..."
-    docker compose exec nginx nginx -s reload
-fi
+echo "♻️  Reloading nginx..."
+docker compose exec nginx nginx -s reload
 
 # Show status
 echo ""
@@ -141,7 +115,7 @@ echo "📊 Service Status:"
 docker compose ps
 echo ""
 echo "🌐 Your site should be available at:"
-echo "   https://$DOMAIN"
+echo "   http://localhost"
 echo ""
 echo "📝 Useful commands:"
 echo "   View logs:          docker compose logs -f"
@@ -151,4 +125,3 @@ echo "   Database migration: docker compose exec app php artisan migrate"
 echo "   Clear cache:        docker compose exec app php artisan cache:clear"
 echo "   Stop services:      docker compose down"
 echo "   Restart:            docker compose restart"
-echo "   SSL status:         docker compose run --rm certbot certificates"
